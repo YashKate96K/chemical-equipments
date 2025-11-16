@@ -6,6 +6,8 @@ from rest_framework.authentication import TokenAuthentication
 from rest_framework.response import Response
 from rest_framework import status
 from django.core.files.base import ContentFile
+from django.contrib.auth.models import User
+from rest_framework.authtoken.models import Token
 
 from .models import Dataset
 from .serializers import DatasetSerializer, UploadResponseSerializer
@@ -54,6 +56,21 @@ def upload_csv(request):
         'preview_csv': dataset.preview_csv,
     }
     return Response(resp, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@authentication_classes([])  # disable auth for signup; allow anonymous registration
+@permission_classes([AllowAny])
+def register_user(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    if not username or not password:
+        return Response({'detail': 'username and password are required'}, status=status.HTTP_400_BAD_REQUEST)
+    if User.objects.filter(username=username).exists():
+        return Response({'detail': 'username already exists'}, status=status.HTTP_400_BAD_REQUEST)
+    user = User.objects.create_user(username=username, password=password)
+    token, _ = Token.objects.get_or_create(user=user)
+    return Response({'token': token.key, 'username': user.username}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
